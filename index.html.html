@@ -1,0 +1,914 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>수학 탐험대: 이산량 분수 짝꿍 찾기</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Jua & Noto Sans KR -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@400;600;700;900&display=swap" rel="stylesheet">
+  <!-- Canvas Confetti -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+  <style>
+    body {
+      font-family: 'Jua', 'Noto Sans KR', sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
+    }
+    .font-num {
+      font-family: 'Jua', cursive, sans-serif;
+    }
+    .font-sans-kr {
+      font-family: 'Noto Sans KR', sans-serif;
+    }
+
+    @keyframes cardSuccess {
+      0%, 100% { transform: scale(1); }
+      40% { transform: scale(1.06) translateY(-4px); }
+      70% { transform: scale(0.97); }
+    }
+    .animate-match-success {
+      animation: cardSuccess 0.5s ease-out forwards;
+    }
+
+    @keyframes cardWiggle {
+      0%, 100% { transform: translateX(0); }
+      20% { transform: translateX(-8px) rotate(-1.5deg); }
+      40% { transform: translateX(8px) rotate(1.5deg); }
+      60% { transform: translateX(-4px); }
+      80% { transform: translateX(4px); }
+    }
+    .animate-wiggle {
+      animation: cardWiggle 0.45s ease-in-out;
+    }
+
+    .btn-3d {
+      transition: all 0.15s ease;
+      box-shadow: 0 4px 0 rgba(0,0,0,0.15);
+    }
+    .btn-3d:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 rgba(0,0,0,0.15);
+    }
+
+    .game-card {
+      transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease, border-color 0.2s ease;
+      box-shadow: 0 6px 14px -3px rgba(0, 0, 0, 0.07), 0 3px 6px -2px rgba(0, 0, 0, 0.04);
+    }
+    .game-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 10px 18px -3px rgba(0, 0, 0, 0.11);
+    }
+    .game-card.selected {
+      transform: translateY(-5px) scale(1.02);
+      box-shadow: 0 0 0 4px #3B82F6, 0 14px 22px -4px rgba(59, 130, 246, 0.3);
+    }
+    .game-card.matched {
+      box-shadow: 0 0 0 3px #10B981, 0 6px 12px -2px rgba(16, 185, 129, 0.25);
+      opacity: 0.95;
+    }
+    
+    .bundle-active-transition {
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+  </style>
+</head>
+<body class="bg-amber-50 text-slate-800 min-h-screen flex flex-col justify-between">
+
+  <!-- Header Navigation & Live Dash -->
+  <header class="bg-white/95 backdrop-blur-sm border-b-4 border-amber-200 sticky top-0 z-40 px-3 sm:px-6 py-2 shadow-sm">
+    <div class="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-2 sm:gap-4">
+      
+      <!-- Logo & Title -->
+      <div class="flex items-center gap-2">
+        <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-amber-400 to-orange-400 flex items-center justify-center text-2xl shadow-sm">
+          🧩
+        </div>
+        <div>
+          <h1 class="text-lg sm:text-2xl font-black text-amber-900 tracking-tight flex items-center gap-1.5">
+            분수 짝꿍 탐정단
+            <span class="text-xs bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded-full border border-amber-300">초등 3-2</span>
+          </h1>
+          <p class="text-xs text-amber-700 hidden sm:block">전체를 똑같이 묶고, 색칠된 묶음의 분수를 찾아요!</p>
+        </div>
+      </div>
+
+      <!-- Stage Selector Tabs -->
+      <div class="flex items-center bg-amber-100/70 p-1 rounded-2xl border border-amber-300 gap-1">
+        <button onclick="switchStage(0)" id="tab-stage-0" class="px-2.5 py-1 text-xs sm:text-sm font-bold rounded-xl transition-all">1단계</button>
+        <button onclick="switchStage(1)" id="tab-stage-1" class="px-2.5 py-1 text-xs sm:text-sm font-bold rounded-xl transition-all">2단계</button>
+        <button onclick="switchStage(2)" id="tab-stage-2" class="px-2.5 py-1 text-xs sm:text-sm font-bold rounded-xl transition-all">3단계</button>
+        <button onclick="switchStage(3)" id="tab-stage-3" class="px-2.5 py-1 text-xs sm:text-sm font-black rounded-xl transition-all flex items-center gap-1">
+          <span>4단계</span>
+          <span class="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
+        </button>
+      </div>
+
+      <!-- Controls & Score -->
+      <div class="flex items-center gap-2 sm:gap-3">
+        <div class="bg-emerald-100/90 border-2 border-emerald-300 rounded-xl px-2.5 py-1 text-center">
+          <span class="text-[11px] text-emerald-700 block font-bold">점수</span>
+          <span id="score-display" class="text-sm sm:text-base font-black text-emerald-800 font-num">0점</span>
+        </div>
+
+        <button id="sound-btn" onclick="toggleSound()" class="w-9 h-9 rounded-xl bg-amber-100 border-2 border-amber-300 hover:bg-amber-200 flex items-center justify-center text-lg transition active:scale-95" title="소리 켜기/끄기">
+          🔊
+        </button>
+
+        <button onclick="restartStage()" class="btn-3d px-3 py-1 bg-rose-400 hover:bg-rose-500 text-white rounded-xl text-xs sm:text-sm font-bold flex items-center gap-1">
+          <span>다시하기</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-6xl w-full mx-auto px-3 sm:px-6 py-4 flex-1 flex flex-col justify-start">
+    
+    <!-- Dynamic Stage Guide Banner -->
+    <div id="instruction-box" class="mb-4 bg-amber-100/90 border-2 border-amber-300 rounded-2xl p-3 sm:p-4 text-center transition-all duration-300 shadow-sm relative overflow-hidden">
+      <div class="flex items-center justify-center gap-2 flex-wrap">
+        <span id="stage-badge" class="inline-block bg-white text-amber-800 text-xs px-2.5 py-1 rounded-full font-bold border border-amber-300 shadow-xs">1단계: 기초 묶음</span>
+        <p id="guide-text" class="text-sm sm:text-base text-amber-950 font-bold leading-snug">
+          왼쪽 <span class="text-indigo-600 underline font-extrabold">그림 카드</span>와 오른쪽 <span class="text-pink-600 underline font-extrabold">분수 카드</span>를 하나씩 눌러 올바른 짝꿍을 찾아보세요!
+        </p>
+      </div>
+    </div>
+
+    <!-- Play Area Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 items-start">
+      
+      <!-- Visual Cards Column -->
+      <div class="flex flex-col gap-3">
+        <div class="flex items-center justify-between px-1">
+          <h2 class="text-base sm:text-lg font-bold text-slate-700 flex items-center gap-1.5">
+            <span class="bg-indigo-500 text-white rounded-lg w-6 h-6 flex items-center justify-center text-xs">1</span>
+            그림 카드 (이산량 모델)
+          </h2>
+          <span id="visual-subtext" class="text-xs text-slate-500 font-sans-kr">점선: 묶음 수 (분모) / 색칠: 부분 (분자)</span>
+        </div>
+        
+        <div id="visual-cards-container" class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+          <!-- Visual Cards dynamically rendered -->
+        </div>
+      </div>
+
+      <!-- Fraction Cards Column -->
+      <div class="flex flex-col gap-3">
+        <div class="flex items-center justify-between px-1">
+          <h2 class="text-base sm:text-lg font-bold text-slate-700 flex items-center gap-1.5">
+            <span class="bg-pink-500 text-white rounded-lg w-6 h-6 flex items-center justify-center text-xs">2</span>
+            분수 기호 카드 (숫자)
+          </h2>
+          <span class="text-xs text-slate-500 font-sans-kr">위: 분자(색칠된 묶음) / 아래: 분모(전체 묶음)</span>
+        </div>
+
+        <div id="fraction-cards-container" class="grid grid-cols-2 sm:grid-cols-2 gap-3 sm:gap-4">
+          <!-- Fraction Cards dynamically rendered -->
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Feedback Message Box -->
+    <div id="feedback-alert" class="mt-4 hidden p-3.5 sm:p-4 rounded-2xl bg-emerald-50 border-2 border-emerald-400 text-emerald-950 flex items-center justify-between shadow-md">
+      <div class="flex items-center gap-3">
+        <div class="text-3xl" id="feedback-icon">🎉</div>
+        <div>
+          <div class="font-bold text-sm sm:text-base text-emerald-900" id="feedback-title">정답입니다!</div>
+          <div class="text-xs sm:text-sm font-sans-kr text-emerald-800" id="feedback-detail">전체와 부분을 비교해 보세요.</div>
+        </div>
+      </div>
+      <button onclick="dismissFeedback()" class="text-emerald-700 hover:text-emerald-900 font-bold px-2 py-1 text-sm rounded-lg hover:bg-emerald-100">
+        ✕
+      </button>
+    </div>
+
+  </main>
+
+  <div id="victory-modal" class="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 hidden p-4">
+    <div class="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full text-center border-4 border-amber-300 shadow-2xl transform transition-all scale-95 duration-200">
+      <div class="text-6xl mb-3 animate-bounce">🎖️</div>
+      <h3 id="victory-title" class="text-2xl sm:text-3xl font-black text-amber-900 mb-2">스테이지 통과!</h3>
+      <p id="victory-desc" class="text-slate-600 font-sans-kr text-sm mb-5">
+        전체 묶음과 색칠된 묶음의 분수 표현을 훌륭하게 해결했어요!
+      </p>
+
+      <div class="bg-amber-50 rounded-2xl p-4 border border-amber-200 mb-6 flex justify-around">
+        <div>
+          <span class="text-xs text-slate-500 block">현재 점수</span>
+          <span id="final-score" class="text-2xl font-black text-emerald-600 font-num">0점</span>
+        </div>
+        <div class="w-px bg-amber-200"></div>
+        <div>
+          <span class="text-xs text-slate-500 block">정답 성공률</span>
+          <span id="final-accuracy" class="text-2xl font-black text-amber-600 font-num">100%</span>
+        </div>
+      </div>
+
+      <div class="flex gap-3 justify-center">
+        <button onclick="onNextStageClick()" id="modal-next-btn" class="btn-3d px-6 py-3 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-bold rounded-2xl text-base w-full shadow-lg">
+          다음 단계 도전하기 ➔
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <footer class="text-center py-2.5 text-xs text-amber-800/70 border-t border-amber-200/60 bg-amber-100/40">
+    초등학교 3학년 2학기 수학 | 이산량의 묶음 모델링과 분수 짝맞추기 게임
+  </footer>
+
+  <script>
+    const SVG_ICONS = {
+      apple: (colored) => `
+        <svg viewBox="0 0 36 36" class="w-7 h-7 sm:w-8 sm:h-8 inline-block drop-shadow-xs transition-all">
+          <path d="M18 4 C18 10 22 7 24 5" stroke="${colored ? '#5B3A29' : '#888'}" stroke-width="2" fill="none" stroke-linecap="round"/>
+          <path d="M18 7 C14 3 11 6 12 8 C15 9 17 8 18 7" fill="${colored ? '#48BB78' : '#CBD5E1'}"/>
+          <path d="M18 9 C11 4 4 10 6 21 C8 29 16 32 18 29 C20 32 28 29 30 21 C32 10 25 4 18 9 Z" 
+                fill="${colored ? '#EF4444' : '#E2E8F0'}" 
+                stroke="${colored ? '#B91C1C' : '#94A3B8'}" stroke-width="1.8"/>
+          ${colored ? `<circle cx="12" cy="14" r="2.2" fill="#FCA5A5" opacity="0.8"/>` : ''}
+        </svg>`,
+      star: (colored) => `
+        <svg viewBox="0 0 36 36" class="w-7 h-7 sm:w-8 sm:h-8 inline-block drop-shadow-xs transition-all">
+          <polygon points="18,4 22,13 32,14 24,21 27,31 18,25 9,31 12,21 4,14 14,13"
+                   fill="${colored ? '#FBBF24' : '#E2E8F0'}"
+                   stroke="${colored ? '#D97706' : '#94A3B8'}" stroke-width="1.8" stroke-linejoin="round"/>
+          ${colored ? `<circle cx="18" cy="18" r="3" fill="#FDE68A"/>` : ''}
+        </svg>`,
+      fish: (colored) => `
+        <svg viewBox="0 0 36 36" class="w-7 h-7 sm:w-8 sm:h-8 inline-block drop-shadow-xs transition-all">
+          <path d="M6 18 C14 11 25 12 30 18 C25 24 14 25 6 18 Z" 
+                fill="${colored ? '#FB923C' : '#E2E8F0'}" 
+                stroke="${colored ? '#C2410C' : '#94A3B8'}" stroke-width="1.8"/>
+          <polygon points="6,18 2,12 2,24" fill="${colored ? '#F97316' : '#CBD5E1'}" stroke="${colored ? '#C2410C' : '#94A3B8'}" stroke-width="1.8"/>
+          <circle cx="24" cy="16" r="1.8" fill="${colored ? '#1E293B' : '#64748B'}"/>
+          ${colored ? `<circle cx="24.5" cy="15.5" r="0.6" fill="#FFF"/>` : ''}
+        </svg>`,
+      cookie: (colored) => `
+        <svg viewBox="0 0 36 36" class="w-7 h-7 sm:w-8 sm:h-8 inline-block drop-shadow-xs transition-all">
+          <circle cx="18" cy="18" r="13" fill="${colored ? '#D97706' : '#E2E8F0'}" stroke="${colored ? '#78350F' : '#94A3B8'}" stroke-width="1.8"/>
+          <circle cx="14" cy="13" r="2" fill="${colored ? '#451A03' : '#94A3B8'}"/>
+          <circle cx="21" cy="15" r="1.8" fill="${colored ? '#451A03' : '#94A3B8'}"/>
+          <circle cx="17" cy="22" r="2.2" fill="${colored ? '#451A03' : '#94A3B8'}"/>
+        </svg>`,
+      flower: (colored) => `
+        <svg viewBox="0 0 36 36" class="w-7 h-7 sm:w-8 sm:h-8 inline-block drop-shadow-xs transition-all">
+          <circle cx="18" cy="10" r="5" fill="${colored ? '#F472B6' : '#E2E8F0'}" stroke="${colored ? '#DB2777' : '#94A3B8'}" stroke-width="1.5"/>
+          <circle cx="18" cy="26" r="5" fill="${colored ? '#F472B6' : '#E2E8F0'}" stroke="${colored ? '#DB2777' : '#94A3B8'}" stroke-width="1.5"/>
+          <circle cx="10" cy="18" r="5" fill="${colored ? '#F472B6' : '#E2E8F0'}" stroke="${colored ? '#DB2777' : '#94A3B8'}" stroke-width="1.5"/>
+          <circle cx="26" cy="18" r="5" fill="${colored ? '#F472B6' : '#E2E8F0'}" stroke="${colored ? '#DB2777' : '#94A3B8'}" stroke-width="1.5"/>
+          <circle cx="18" cy="18" r="4.5" fill="${colored ? '#FDE047' : '#CBD5E1'}" stroke="${colored ? '#CA8A04' : '#94A3B8'}" stroke-width="1.5"/>
+        </svg>`,
+      candy: (colored) => `
+        <svg viewBox="0 0 36 36" class="w-7 h-7 sm:w-8 sm:h-8 inline-block drop-shadow-xs transition-all">
+          <polygon points="7,13 7,23 12,18" fill="${colored ? '#C084FC' : '#CBD5E1'}" stroke="${colored ? '#7E22CE' : '#94A3B8'}" stroke-width="1.5"/>
+          <polygon points="29,13 29,23 24,18" fill="${colored ? '#C084FC' : '#CBD5E1'}" stroke="${colored ? '#7E22CE' : '#94A3B8'}" stroke-width="1.5"/>
+          <circle cx="18" cy="18" r="8" fill="${colored ? '#A855F7' : '#E2E8F0'}" stroke="${colored ? '#6B21A8' : '#94A3B8'}" stroke-width="1.8"/>
+          ${colored ? `<path d="M13 18 Q18 12 23 18" stroke="#FFF" stroke-width="1.6" fill="none"/>` : ''}
+        </svg>`,
+      balloon: (colored) => `
+        <svg viewBox="0 0 36 36" class="w-7 h-7 sm:w-8 sm:h-8 inline-block drop-shadow-xs transition-all">
+          <ellipse cx="18" cy="16" rx="9" ry="11" fill="${colored ? '#38BDF8' : '#E2E8F0'}" stroke="${colored ? '#0284C7' : '#94A3B8'}" stroke-width="1.8"/>
+          <polygon points="18,27 16,30 20,30" fill="${colored ? '#0369A1' : '#94A3B8'}"/>
+          <path d="M18 30 Q16 33 18 35" stroke="${colored ? '#64748B' : '#94A3B8'}" stroke-width="1.2" fill="none"/>
+        </svg>`,
+      carrot: (colored) => `
+        <svg viewBox="0 0 36 36" class="w-7 h-7 sm:w-8 sm:h-8 inline-block drop-shadow-xs transition-all">
+          <path d="M18 10 L14 4 M18 10 L18 2 M18 10 L22 4" stroke="${colored ? '#16A34A' : '#94A3B8'}" stroke-width="2" stroke-linecap="round"/>
+          <polygon points="11,10 25,10 18,34" fill="${colored ? '#EA580C' : '#E2E8F0'}" stroke="${colored ? '#C2410C' : '#94A3B8'}" stroke-width="1.8"/>
+          ${colored ? `<line x1="14" y1="17" x2="20" y2="17" stroke="#9A3412" stroke-width="1.2"/><line x1="16" y1="24" x2="21" y2="24" stroke="#9A3412" stroke-width="1.2"/>` : ''}
+        </svg>`
+    };
+
+    const STAGE_CONFIGS = [
+      {
+        title: "1단계: 기초 묶음",
+        instruction: "묶음 상자가 친절하게 표시되어 있어요! 색칠된 묶음의 분수를 찾아보세요.",
+        hasInteractiveBundling: false
+      },
+      {
+        title: "2단계: 중급 묶음",
+        instruction: "개수가 조금 더 늘어났어요! 전체 묶음 수와 색칠된 묶음 수를 꼼꼼히 확인하세요.",
+        hasInteractiveBundling: false
+      },
+      {
+        title: "3단계: 심화 묶음",
+        instruction: "5~6묶음의 다양한 분수들이 등장해요. 집중해서 짝을 맞춰보세요!",
+        hasInteractiveBundling: false
+      },
+      {
+        title: "4단계: 스스로 묶어보기 (마스터)",
+        instruction: "묶음 상자가 없어요! [몇 개씩 묶어보기] 버튼을 눌러 올바른 묶음을 만든 뒤 분수 카드를 찾아보세요!",
+        hasInteractiveBundling: true
+      }
+    ];
+
+    const PROBLEM_BANK = [
+      // Stage 1
+      [
+        { id: 's1_apple', type: 'apple', itemName: '사과', totalCount: 6, bundleSize: 2, bundleCount: 3, targetBundles: 1, explanation: '사과 6개를 2개씩 3묶음으로 나눈 것 중 1묶음이므로 1/3입니다.' },
+        { id: 's1_star', type: 'star', itemName: '별', totalCount: 8, bundleSize: 2, bundleCount: 4, targetBundles: 3, explanation: '별 8개를 2개씩 4묶음으로 나눈 것 중 3묶음이므로 3/4입니다.' },
+        { id: 's1_fish', type: 'fish', itemName: '물고기', totalCount: 6, bundleSize: 3, bundleCount: 2, targetBundles: 1, explanation: '물고기 6마리를 3마리씩 2묶음으로 나눈 것 중 1묶음이므로 1/2입니다.' },
+        { id: 's1_cookie', type: 'cookie', itemName: '쿠키', totalCount: 9, bundleSize: 3, bundleCount: 3, targetBundles: 2, explanation: '쿠키 9개를 3개씩 3묶음으로 나눈 것 중 2묶음이므로 2/3입니다.' }
+      ],
+      // Stage 2
+      [
+        { id: 's2_flower', type: 'flower', itemName: '꽃', totalCount: 8, bundleSize: 2, bundleCount: 4, targetBundles: 1, explanation: '꽃 8송이를 2송이씩 4묶음으로 나눈 것 중 1묶음이므로 1/4입니다.' },
+        { id: 's2_candy', type: 'candy', itemName: '사탕', totalCount: 12, bundleSize: 3, bundleCount: 4, targetBundles: 3, explanation: '사탕 12개를 3개씩 4묶음으로 나눈 것 중 3묶음이므로 3/4입니다.' },
+        { id: 's2_carrot', type: 'carrot', itemName: '당근', totalCount: 10, bundleSize: 2, bundleCount: 5, targetBundles: 2, explanation: '당근 10개를 2개씩 5묶음으로 나눈 것 중 2묶음이므로 2/5입니다.' },
+        { id: 's2_balloon', type: 'balloon', itemName: '풍선', totalCount: 12, bundleSize: 4, bundleCount: 3, targetBundles: 2, explanation: '풍선 12개를 4개씩 3묶음으로 나눈 것 중 2묶음이므로 2/3입니다.' }
+      ],
+      // Stage 3
+      [
+        { id: 's3_fish', type: 'fish', itemName: '물고기', totalCount: 15, bundleSize: 3, bundleCount: 5, targetBundles: 4, explanation: '물고기 15마리를 3마리씩 5묶음으로 나눈 것 중 4묶음이므로 4/5입니다.' },
+        { id: 's3_apple', type: 'apple', itemName: '사과', totalCount: 12, bundleSize: 2, bundleCount: 6, targetBundles: 5, explanation: '사과 12개를 2개씩 6묶음으로 나눈 것 중 5묶음이므로 5/6입니다.' },
+        { id: 's3_star', type: 'star', itemName: '별', totalCount: 16, bundleSize: 4, bundleCount: 4, targetBundles: 3, explanation: '별 16개를 4개씩 4묶음으로 나눈 것 중 3묶음이므로 3/4입니다.' },
+        { id: 's3_cookie', type: 'cookie', itemName: '쿠키', totalCount: 18, bundleSize: 3, bundleCount: 6, targetBundles: 2, explanation: '쿠키 18개를 3개씩 6묶음으로 나눈 것 중 2묶음이므로 2/6입니다.' }
+      ],
+      // Stage 4: Interactive Bundling Mode (No pre-drawn bundle borders initially!)
+      [
+        { 
+          id: 's4_apple', 
+          type: 'apple', 
+          itemName: '사과', 
+          totalCount: 12, 
+          coloredCount: 8, 
+          bundleSize: 4, // 12개를 4개씩 묶으면 3묶음, 색칠 2묶음 -> 2/3
+          bundleCount: 3, 
+          targetBundles: 2,
+          candidateSizes: [2, 3, 4],
+          explanation: '사과 12개를 4개씩 묶으면 똑같이 3묶음이 되고, 색칠된 사과는 2묶음이므로 전체의 2/3입니다!' 
+        },
+        { 
+          id: 's4_candy', 
+          type: 'candy', 
+          itemName: '사탕', 
+          totalCount: 10, 
+          coloredCount: 4, 
+          bundleSize: 2, // 10개를 2개씩 묶으면 5묶음, 색칠 2묶음 -> 2/5
+          bundleCount: 5, 
+          targetBundles: 2,
+          candidateSizes: [2, 5],
+          explanation: '사탕 10개를 2개씩 묶으면 5묶음이 되고, 색칠된 사탕은 2묶음이므로 전체의 2/5입니다!' 
+        },
+        { 
+          id: 's4_flower', 
+          type: 'flower', 
+          itemName: '꽃', 
+          totalCount: 12, 
+          coloredCount: 9, 
+          bundleSize: 3, // 12개를 3개씩 묶으면 4묶음, 색칠 3묶음 -> 3/4
+          bundleCount: 4, 
+          targetBundles: 3,
+          candidateSizes: [2, 3, 4],
+          explanation: '꽃 12송이를 3송이씩 묶으면 4묶음이 되고, 색칠된 꽃은 3묶음이므로 전체의 3/4입니다!' 
+        },
+        { 
+          id: 's4_carrot', 
+          type: 'carrot', 
+          itemName: '당근', 
+          totalCount: 15, 
+          coloredCount: 6, 
+          bundleSize: 3, // 15개를 3개씩 묶으면 5묶음, 색칠 2묶음 -> 2/5
+          bundleCount: 5, 
+          targetBundles: 2,
+          candidateSizes: [3, 5],
+          explanation: '당근 15개를 3개씩 묶으면 똑같이 5묶음이 되고, 색칠된 당근은 2묶음이므로 전체의 2/5입니다!' 
+        }
+      ]
+    ];
+
+    let isSoundOn = true;
+    let audioCtx = null;
+
+    function getAudioContext() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+      return audioCtx;
+    }
+
+    function toggleSound() {
+      isSoundOn = !isSoundOn;
+      document.getElementById('sound-btn').textContent = isSoundOn ? '🔊' : '🔇';
+    }
+
+    function playTone(freq, duration = 0.15, type = 'sine', delay = 0) {
+      if (!isSoundOn) return;
+      try {
+        const ctx = getAudioContext();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, ctx.currentTime + delay);
+        gain.gain.setValueAtTime(0.15, ctx.currentTime + delay);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay + duration);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(ctx.currentTime + delay);
+        osc.stop(ctx.currentTime + delay + duration);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    function playSoundClick() { playTone(440, 0.07, 'triangle'); }
+    function playSoundMatch() {
+      playTone(523.25, 0.1, 'sine', 0);
+      playTone(659.25, 0.12, 'sine', 0.07);
+      playTone(783.99, 0.18, 'sine', 0.14);
+      playTone(1046.50, 0.25, 'sine', 0.21);
+    }
+    function playSoundBundle() {
+      playTone(330, 0.08, 'triangle', 0);
+      playTone(493.88, 0.12, 'sine', 0.06);
+    }
+    function playSoundError() {
+      playTone(280, 0.15, 'sawtooth', 0);
+      playTone(210, 0.22, 'sawtooth', 0.1);
+    }
+    function playSoundVictory() {
+      [523, 659, 783, 1046, 1318].forEach((freq, idx) => {
+        playTone(freq, 0.28, 'triangle', idx * 0.1);
+      });
+    }
+
+    let currentStage = 0;
+    let score = 0;
+    let totalAttempts = 0;
+    let correctMatches = 0;
+
+    let selectedVisualId = null;
+    let selectedFractionId = null;
+    let matchedIds = new Set();
+    let isProcessing = false;
+
+    // Track student's chosen bundle size per problem in Stage 4
+    let stage4BundleState = {};
+
+    function shuffle(arr) {
+      const copy = [...arr];
+      for (let i = copy.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [copy[i], copy[j]] = [copy[j], copy[i]];
+      }
+      return copy;
+    }
+
+    function switchStage(stageIdx) {
+      currentStage = stageIdx;
+      selectedVisualId = null;
+      selectedFractionId = null;
+      matchedIds.clear();
+      stage4BundleState = {};
+      isProcessing = false;
+      renderStage();
+    }
+
+    function restartStage() {
+      switchStage(currentStage);
+    }
+
+    function renderStage() {
+      // Update Tab Styles
+      for (let i = 0; i < 4; i++) {
+        const tab = document.getElementById(`tab-stage-${i}`);
+        if (i === currentStage) {
+          tab.className = 'px-2.5 py-1 text-xs sm:text-sm font-black rounded-xl bg-amber-500 text-white shadow-sm';
+        } else {
+          tab.className = 'px-2.5 py-1 text-xs sm:text-sm font-bold rounded-xl text-amber-900 hover:bg-amber-200/70';
+        }
+      }
+
+      const config = STAGE_CONFIGS[currentStage];
+      document.getElementById('stage-badge').textContent = config.title;
+      document.getElementById('guide-text').innerHTML = config.instruction;
+      document.getElementById('score-display').textContent = `${score}점`;
+      document.getElementById('visual-subtext').textContent = config.hasInteractiveBundling 
+        ? '💡 먼저 묶음 수를 정해 나눈 후 분수를 찾아보세요!' 
+        : '점선: 묶음 수 (분모) / 색칠: 부분 (분자)';
+
+      dismissFeedback();
+
+      const stageProblems = PROBLEM_BANK[currentStage];
+      const shuffledVisuals = shuffle(stageProblems);
+      const shuffledFractions = shuffle(stageProblems);
+
+      const visualContainer = document.getElementById('visual-cards-container');
+      const fractionContainer = document.getElementById('fraction-cards-container');
+
+      visualContainer.innerHTML = '';
+      fractionContainer.innerHTML = '';
+
+      // Render Visual Models
+      shuffledVisuals.forEach(problem => {
+        const card = document.createElement('div');
+        card.id = `visual-${problem.id}`;
+        card.className = `game-card relative bg-white border-2 border-indigo-200 hover:border-indigo-400 rounded-2xl p-3 sm:p-4 cursor-pointer flex flex-col justify-between select-none min-h-[220px] transition-all`;
+        
+        // Card click handler for matching
+        card.onclick = (e) => {
+          // If clicking bundle option buttons in stage 4, don't trigger card selection
+          if (e.target.closest('.bundle-select-btn')) return;
+          onSelectVisual(problem.id);
+        };
+
+        if (config.hasInteractiveBundling) {
+          // Stage 4: Interactive Bundling Card Layout
+          card.innerHTML = buildStage4CardContent(problem);
+        } else {
+          // Stage 1~3: Standard Pre-bundled Layout
+          card.innerHTML = buildStandardCardContent(problem);
+        }
+
+        visualContainer.appendChild(card);
+      });
+
+      // Render Fraction Number Cards
+      shuffledFractions.forEach(problem => {
+        const card = document.createElement('div');
+        card.id = `fraction-${problem.id}`;
+        card.className = `game-card relative bg-white border-2 border-pink-200 hover:border-pink-400 rounded-2xl p-4 cursor-pointer flex flex-col items-center justify-center transition-all select-none min-h-[200px] sm:min-h-[220px]`;
+        card.onclick = () => onSelectFraction(problem.id);
+
+        card.innerHTML = `
+          <div class="text-xs font-bold text-pink-600 bg-pink-50 border border-pink-200 px-3 py-0.5 rounded-full mb-2">
+            분수 카드
+          </div>
+          <div class="flex flex-col items-center justify-center py-2 px-6">
+            <span class="text-3xl sm:text-4xl font-black text-pink-600 font-num tracking-wider">
+              ${problem.targetBundles}
+            </span>
+            <div class="w-14 sm:w-16 h-1 bg-slate-800 rounded-full my-1"></div>
+            <span class="text-3xl sm:text-4xl font-black text-slate-800 font-num tracking-wider">
+              ${problem.bundleCount}
+            </span>
+          </div>
+          <div class="text-xs text-slate-500 font-sans-kr mt-1">
+            (${problem.bundleCount}분의 ${problem.targetBundles})
+          </div>
+        `;
+        fractionContainer.appendChild(card);
+      });
+    }
+
+    function buildStandardCardContent(problem) {
+      const topLabel = `
+        <div class="w-full flex items-center justify-between border-b border-indigo-100 pb-1.5 mb-2 text-xs">
+          <span class="font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-200">
+            전체 ${problem.totalCount}개
+          </span>
+          <span class="text-slate-600 font-sans-kr font-medium">
+            ${problem.bundleSize}개씩 ${problem.bundleCount}묶음
+          </span>
+        </div>
+      `;
+
+      let bundlesHtml = `<div class="w-full flex flex-wrap items-center justify-center gap-2 my-auto py-2">`;
+      for (let b = 0; b < problem.bundleCount; b++) {
+        const isTarget = b < problem.targetBundles;
+        const bundleStyle = isTarget
+          ? 'bg-amber-50/90 border-2 border-amber-500 ring-2 ring-amber-300 shadow-xs'
+          : 'bg-slate-50/70 border-2 border-dashed border-slate-300 opacity-60';
+
+        bundlesHtml += `<div class="bundle-box ${bundleStyle} rounded-xl px-2 py-1.5 flex items-center justify-center gap-1">`;
+        for (let i = 0; i < problem.bundleSize; i++) {
+          bundlesHtml += SVG_ICONS[problem.type](isTarget);
+        }
+        bundlesHtml += `</div>`;
+      }
+      bundlesHtml += `</div>`;
+
+      const bottomLabel = `
+        <div class="w-full mt-2 pt-1.5 border-t border-slate-100 text-center">
+          <span class="text-[11px] font-sans-kr font-bold text-amber-800">
+            👉 색칠된 묶음: <span class="font-num text-xs font-black">${problem.targetBundles}</span> / 전체 묶음: <span class="font-num text-xs font-black text-slate-800">${problem.bundleCount}</span>
+          </span>
+        </div>
+      `;
+
+      return topLabel + bundlesHtml + bottomLabel;
+    }
+
+    function buildStage4CardContent(problem) {
+      const currentChosen = stage4BundleState[problem.id] || null;
+
+      const topLabel = `
+        <div class="w-full flex items-center justify-between border-b border-indigo-100 pb-1.5 mb-2 text-xs">
+          <span class="font-bold text-indigo-700 bg-indigo-50 px-2.5 py-0.5 rounded-full border border-indigo-200">
+            전체 ${problem.totalCount}개 (색칠 ${problem.coloredCount}개)
+          </span>
+          <span class="text-purple-700 font-bold bg-purple-50 px-2 py-0.5 rounded-full border border-purple-200">
+            🔍 묶음 찾기 모드
+          </span>
+        </div>
+      `;
+
+      // Bundle Size Buttons for student to test and bundle
+      let bundleControlHtml = `
+        <div class="w-full flex items-center justify-center gap-1.5 my-1.5">
+          <span class="text-xs text-slate-600 font-bold">몇 개씩 묶을까?</span>
+      `;
+      problem.candidateSizes.forEach(size => {
+        const isSelected = currentChosen === size;
+        const btnClass = isSelected
+          ? 'bg-indigo-600 text-white border-indigo-700 shadow-inner scale-105'
+          : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100';
+
+        bundleControlHtml += `
+          <button onclick="applyInteractiveBundle('${problem.id}', ${size})" class="bundle-select-btn px-2.5 py-1 text-xs font-bold rounded-lg border transition-all ${btnClass}">
+            ${size}개씩
+          </button>
+        `;
+      });
+      bundleControlHtml += `</div>`;
+
+      // Items Container
+      let itemsContainerHtml = '';
+      if (!currentChosen) {
+        // No bundle size selected yet: render plain unbundled grid
+        itemsContainerHtml = `
+          <div class="w-full flex flex-wrap items-center justify-center gap-2 p-3 my-auto bg-slate-50/80 rounded-xl border border-slate-200">
+        `;
+        for (let i = 0; i < problem.totalCount; i++) {
+          const isColored = i < problem.coloredCount;
+          itemsContainerHtml += `<span class="transition-transform hover:scale-110">${SVG_ICONS[problem.type](isColored)}</span>`;
+        }
+        itemsContainerHtml += `</div>`;
+      } else {
+        // Render dynamically grouped into bundles based on student's choice
+        const numBundles = Math.floor(problem.totalCount / currentChosen);
+        const remainder = problem.totalCount % currentChosen;
+
+        itemsContainerHtml = `<div class="w-full flex flex-wrap items-center justify-center gap-2 p-2 my-auto bundle-active-transition">`;
+        
+        let itemIndex = 0;
+        for (let b = 0; b < numBundles; b++) {
+          let bundleColoredCount = 0;
+          for (let k = 0; k < currentChosen; k++) {
+            if ((itemIndex + k) < problem.coloredCount) bundleColoredCount++;
+          }
+
+          // A bundle is fully colored if all its items are colored
+          const isFullColored = bundleColoredCount === currentChosen;
+          const isPartColored = bundleColoredCount > 0 && bundleColoredCount < currentChosen;
+
+          let bundleBorder = 'bg-slate-50/80 border-2 border-dashed border-slate-300 opacity-60';
+          if (isFullColored) {
+            bundleBorder = 'bg-amber-50/90 border-2 border-amber-500 ring-2 ring-amber-300 shadow-xs';
+          } else if (isPartColored) {
+            // Mixed bundle alert styling (shows equal division isn't clean for this fraction)
+            bundleBorder = 'bg-rose-50 border-2 border-rose-300';
+          }
+
+          itemsContainerHtml += `<div class="bundle-box ${bundleBorder} rounded-xl px-2 py-1.5 flex items-center justify-center gap-1 transition-all">`;
+          for (let i = 0; i < currentChosen; i++) {
+            const isItemColored = itemIndex < problem.coloredCount;
+            itemsContainerHtml += SVG_ICONS[problem.type](isItemColored);
+            itemIndex++;
+          }
+          itemsContainerHtml += `</div>`;
+        }
+
+        // Remainder if any
+        if (remainder > 0) {
+          itemsContainerHtml += `<div class="p-1 text-xs text-rose-500 font-bold border border-rose-200 rounded-lg">남은 것 ${remainder}개 (똑같이 나뉘지 않음)</div>`;
+        }
+
+        itemsContainerHtml += `</div>`;
+      }
+
+      // Dynamic Feedback footer
+      let footerText = `
+        <div class="w-full mt-2 pt-1 border-t border-slate-100 text-center text-xs font-sans-kr">
+      `;
+      if (!currentChosen) {
+        footerText += `<span class="text-indigo-600 font-bold">👆 버튼을 눌러 개수를 똑같이 묶어보세요!</span>`;
+      } else {
+        const numBundles = Math.floor(problem.totalCount / currentChosen);
+        const coloredBundles = Math.floor(problem.coloredCount / currentChosen);
+        const isIdealBundle = currentChosen === problem.bundleSize;
+
+        if (isIdealBundle) {
+          footerText += `
+            <span class="text-emerald-700 font-bold">
+              ✨ 전체 <span class="font-num text-sm text-emerald-900">${numBundles}</span>묶음 중 색칠된 <span class="font-num text-sm text-emerald-900">${coloredBundles}</span>묶음! 이제 분수 카드를 골라보세요.
+            </span>
+          `;
+        } else {
+          footerText += `
+            <span class="text-amber-700 font-medium">
+              💡 ${currentChosen}개씩 묶었더니 ${numBundles}묶음이 되었어요. 색칠된 부분이 묶음 단위로 딱 떨어지는지 확인해보세요!
+            </span>
+          `;
+        }
+      }
+      footerText += `</div>`;
+
+      return topLabel + bundleControlHtml + itemsContainerHtml + footerText;
+    }
+
+    function applyInteractiveBundle(problemId, size) {
+      playSoundBundle();
+      stage4BundleState[problemId] = size;
+
+      const card = document.getElementById(`visual-${problemId}`);
+      if (!card) return;
+
+      const problem = PROBLEM_BANK[3].find(p => p.id === problemId);
+      if (problem) {
+        card.innerHTML = buildStage4CardContent(problem);
+      }
+    }
+
+    function onSelectVisual(id) {
+      if (isProcessing || matchedIds.has(id)) return;
+      playSoundClick();
+
+      if (selectedVisualId === id) {
+        document.getElementById(`visual-${id}`).classList.remove('selected');
+        selectedVisualId = null;
+        return;
+      }
+
+      if (selectedVisualId) {
+        document.getElementById(`visual-${selectedVisualId}`).classList.remove('selected');
+      }
+
+      selectedVisualId = id;
+      document.getElementById(`visual-${id}`).classList.add('selected');
+      checkMatch();
+    }
+
+    function onSelectFraction(id) {
+      if (isProcessing || matchedIds.has(id)) return;
+      playSoundClick();
+
+      if (selectedFractionId === id) {
+        document.getElementById(`fraction-${id}`).classList.remove('selected');
+        selectedFractionId = null;
+        return;
+      }
+
+      if (selectedFractionId) {
+        document.getElementById(`fraction-${selectedFractionId}`).classList.remove('selected');
+      }
+
+      selectedFractionId = id;
+      document.getElementById(`fraction-${id}`).classList.add('selected');
+      checkMatch();
+    }
+
+    function checkMatch() {
+      if (!selectedVisualId || !selectedFractionId) return;
+
+      isProcessing = true;
+      totalAttempts++;
+
+      const visualEl = document.getElementById(`visual-${selectedVisualId}`);
+      const fracEl = document.getElementById(`fraction-${selectedFractionId}`);
+      const stageProblems = PROBLEM_BANK[currentStage];
+
+      if (selectedVisualId === selectedFractionId) {
+        // MATCH SUCCESS!
+        correctMatches++;
+        score += (currentStage + 1) * 50; // Higher reward for higher stages
+        document.getElementById('score-display').textContent = `${score}점`;
+
+        matchedIds.add(selectedVisualId);
+        playSoundMatch();
+
+        visualEl.classList.remove('selected');
+        fracEl.classList.remove('selected');
+        visualEl.classList.add('matched', 'bg-emerald-50/70', 'border-emerald-400', 'animate-match-success');
+        fracEl.classList.add('matched', 'bg-emerald-50/70', 'border-emerald-400', 'animate-match-success');
+
+        appendMatchedBadge(visualEl);
+        appendMatchedBadge(fracEl);
+
+        const prob = stageProblems.find(p => p.id === selectedVisualId);
+        showFeedback(true, prob.explanation);
+
+        selectedVisualId = null;
+        selectedFractionId = null;
+        isProcessing = false;
+
+        // Check stage clear
+        if (matchedIds.size === stageProblems.length) {
+          setTimeout(() => {
+            handleStageClear();
+          }, 800);
+        }
+      } else {
+        // MISMATCH
+        playSoundError();
+        visualEl.classList.add('animate-wiggle', 'border-rose-400');
+        fracEl.classList.add('animate-wiggle', 'border-rose-400');
+
+        showFeedback(false, '전체 몇 묶음 중 색칠된 묶음이 몇 개인지 다시 한 번 차근차근 세어보세요!');
+
+        setTimeout(() => {
+          visualEl.classList.remove('animate-wiggle', 'border-rose-400', 'selected');
+          fracEl.classList.remove('animate-wiggle', 'border-rose-400', 'selected');
+          selectedVisualId = null;
+          selectedFractionId = null;
+          isProcessing = false;
+        }, 750);
+      }
+    }
+
+    function appendMatchedBadge(element) {
+      const badge = document.createElement('div');
+      badge.className = 'absolute top-2 right-2 bg-emerald-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold shadow-sm pointer-events-none animate-bounce';
+      badge.innerHTML = '✓';
+      element.appendChild(badge);
+    }
+
+    function showFeedback(isSuccess, message) {
+      const box = document.getElementById('feedback-alert');
+      const title = document.getElementById('feedback-title');
+      const detail = document.getElementById('feedback-detail');
+      const icon = document.getElementById('feedback-icon');
+
+      box.classList.remove('hidden');
+      if (isSuccess) {
+        box.className = 'mt-4 p-3.5 sm:p-4 rounded-2xl bg-emerald-50 border-2 border-emerald-400 text-emerald-950 flex items-center justify-between shadow-md transition-all';
+        icon.textContent = '🎉';
+        title.innerHTML = '참 잘했어요! 정답입니다!';
+        title.className = 'font-bold text-sm sm:text-base text-emerald-900';
+        detail.textContent = message;
+      } else {
+        box.className = 'mt-4 p-3.5 sm:p-4 rounded-2xl bg-rose-50 border-2 border-rose-300 text-rose-950 flex items-center justify-between shadow-md transition-all';
+        icon.textContent = '🧐';
+        title.innerHTML = '다시 한 번 살펴볼까요?';
+        title.className = 'font-bold text-sm sm:text-base text-rose-900';
+        detail.textContent = message;
+      }
+    }
+
+    function dismissFeedback() {
+      document.getElementById('feedback-alert').classList.add('hidden');
+    }
+
+    function handleStageClear() {
+      playSoundVictory();
+
+      if (typeof confetti === 'function') {
+        confetti({
+          particleCount: 100,
+          spread: 80,
+          origin: { y: 0.6 }
+        });
+      }
+
+      const modal = document.getElementById('victory-modal');
+      const modalNextBtn = document.getElementById('modal-next-btn');
+      const finalScore = document.getElementById('final-score');
+      const finalAccuracy = document.getElementById('final-accuracy');
+      const title = document.getElementById('victory-title');
+      const desc = document.getElementById('victory-desc');
+
+      finalScore.textContent = `${score}점`;
+      const accuracy = Math.round((correctMatches / (totalAttempts || 1)) * 100);
+      finalAccuracy.textContent = `${accuracy}%`;
+
+      if (currentStage < 3) {
+        title.textContent = `${currentStage + 1}단계 통과 완료!`;
+        desc.textContent = `축하합니다! 이제 더 흥미진진한 ${currentStage + 2}단계에 도전해보세요.`;
+        modalNextBtn.textContent = `${currentStage + 2}단계 도전하기 ➔`;
+      } else {
+        title.textContent = `🏆 분수 마스터 탐정 탄생!`;
+        desc.textContent = `4단계 '스스로 묶어보기'까지 모두 정복했어요! 이산량의 분수 개념을 완벽히 마스터했습니다!`;
+        modalNextBtn.textContent = `1단계부터 복습하기 🔄`;
+      }
+
+      modal.classList.remove('hidden');
+    }
+
+    function onNextStageClick() {
+      document.getElementById('victory-modal').classList.add('hidden');
+      if (currentStage < 3) {
+        switchStage(currentStage + 1);
+      } else {
+        score = 0;
+        totalAttempts = 0;
+        correctMatches = 0;
+        switchStage(0);
+      }
+    }
+
+    // Initialize on window load
+    window.onload = function() {
+      switchStage(0);
+    };
+  </script>
+</body>
+</html>
